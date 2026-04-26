@@ -100,7 +100,8 @@ a{color:inherit;text-decoration:none}
 #map{width:100%;height:100%;background:var(--bg-elev)}
 
 /* Detail sheet */
-#detail{position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);display:flex;flex-direction:column;-webkit-overflow-scrolling:touch}
+#detail{position:fixed;inset:0;background:var(--bg);z-index:1500;overflow-y:auto;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);display:flex;flex-direction:column;-webkit-overflow-scrolling:touch}
+body.detail-open #app{display:none!important}
 #detail.open{transform:translateY(0)}
 #detail-header{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(20px);padding:14px 20px;border-bottom:1px solid var(--border);z-index:10;display:flex;align-items:center;gap:14px}
 #detail-close{font-size:22px;width:38px;height:38px;border-radius:50%;background:var(--bg-elev);display:flex;align-items:center;justify-content:center;color:var(--ink);transition:background 0.15s}
@@ -127,7 +128,7 @@ a{color:inherit;text-decoration:none}
 .feat-grid{display:flex;flex-wrap:wrap;gap:8px}
 .feat-tag{padding:8px 14px;border-radius:100px;background:var(--bg-card);color:var(--ink);font-size:13px;font-family:var(--sans);border:1px solid var(--border);letter-spacing:0.01em}
 
-.cta-row{position:fixed;bottom:0;left:0;right:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(20px);padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;z-index:20}
+.cta-row{position:fixed;bottom:0;left:0;right:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(20px);padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;z-index:1501}
 .cta{flex:1;padding:15px;border-radius:12px;font-size:14px;font-weight:500;font-family:var(--sans);text-align:center;letter-spacing:0.02em;transition:all 0.15s}
 .cta-primary{background:var(--ink);color:var(--bg)}
 .cta-primary:active{background:#1a120a}
@@ -141,7 +142,7 @@ a{color:inherit;text-decoration:none}
 .nav-btn .icon{font-size:22px}
 
 /* Week sheet */
-#week-sheet{position:fixed;inset:0;background:rgba(44,34,22,0.4);z-index:300;display:none;align-items:flex-end;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#week-sheet{position:fixed;inset:0;background:rgba(44,34,22,0.4);z-index:1600;display:none;align-items:flex-end;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 #week-sheet.open{display:flex}
 .sheet-content{background:var(--bg);width:100%;border-radius:24px 24px 0 0;padding:24px 24px 36px;border-top:1px solid var(--border)}
 .sheet-title{font-family:'Charter',serif;font-size:22px;font-weight:400;color:var(--ink);margin-bottom:4px;text-align:center;letter-spacing:-0.01em}
@@ -496,9 +497,14 @@ function openDetail(idx){
    d.onclick=function(){track.style.transition='transform 0.25s cubic-bezier(0.32,0.72,0,1)';goTo(parseInt(this.dataset.i));};
   });
  }
+ document.body.classList.add('detail-open');
  sheet.classList.add('open');
 }
-function closeDetail(){document.getElementById('detail').classList.remove('open');}
+function closeDetail(){
+ document.getElementById('detail').classList.remove('open');
+ document.body.classList.remove('detail-open');
+ if(state.view==='map'&&state.map)setTimeout(function(){state.map.invalidateSize()},100);
+}
 
 // === MAP VIEW ===
 function initMap(){
@@ -506,19 +512,35 @@ function initMap(){
  state.map=L.map('map',{zoomControl:true,zoomSnap:0.5}).setView([47.5,-120.5],7);
  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
   attribution:'\u00a9 OSM | WTA + AllTrails',maxZoom:18}).addTo(state.map);
+ // Compute max reports-per-week across all trails for normalization
+ var maxWeekReports=1;
+ trails.forEach(function(t){for(var w=1;w<=52;w++){var c=t.weeks[String(w)]||0;if(c>maxWeekReports)maxWeekReports=c;}});
+ var HEAT=['#6b4e7c','#4a6b7c','#4a7c6b','#7c9e4a','#d4af37','#d4734d','#c85a3a','#a83018'];
+ function heatColor(val,max){
+  if(val===0)return '#3a3028';
+  var t=Math.min(Math.log(val+1)/Math.log(max+1),1);
+  return HEAT[Math.floor(t*(HEAT.length-1))];
+ }
  state.markers=L.markerClusterGroup({maxClusterRadius:50,disableClusteringAtZoom:12});
+ state.mapMarkers=[];
  trails.forEach(function(t,idx){
-  var m=L.circleMarker([t.lat,t.lng],{radius:6,fillColor:REGION_COLORS[t.region]||'#888',
-   color:'rgba(255,255,255,0.3)',weight:1,fillOpacity:0.85});
+  var m=L.circleMarker([t.lat,t.lng],{radius:5,fillColor:'#888',color:'rgba(255,255,255,0.3)',weight:1,fillOpacity:0.8});
   m.on('click',function(){
    var html='<div class="map-title">'+t.name+'</div>';
    if(t.difficulty)html+='<span class="badge '+DIFF_CLS[t.difficulty]+'">'+t.difficulty+'</span> ';
    if(t.rating)html+=starStr(t.rating);
+   var weekReports=t.weeks[String(state.week)]||0;
+   if(weekReports>0)html+='<br><span style="color:var(--accent);font-size:12px;font-weight:500">'+weekReports+' reports this week</span>';
+   if(t.totalReports)html+='<br><span style="color:var(--ink-muted);font-size:12px">'+t.totalReports+' total reports</span>';
    html+='<br><span class="map-open" onclick="window._openDetail('+idx+');return false">Open details</span>';
    L.popup({maxWidth:260,className:'map-popup'}).setLatLng([t.lat,t.lng]).setContent(html).openOn(state.map);
   });
+  state.mapMarkers.push({marker:m,trail:t});
   state.markers.addLayer(m);
  });
+ state.heatMax=maxWeekReports;
+ state.heatFn=heatColor;
+ updateMapHeat();
  state.map.addLayer(state.markers);
  state.markersInitd=true;
 }
@@ -526,6 +548,16 @@ window._openDetail=function(idx){
  state.map.closePopup();
  openDetail(idx);
 };
+
+function updateMapHeat(){
+ if(!state.mapMarkers)return;
+ state.mapMarkers.forEach(function(o){
+  var val=o.trail.weeks[String(state.week)]||0;
+  var color=state.heatFn(val,state.heatMax);
+  var size=val>0?4+Math.min(Math.log(val+1)*2.5,10):3;
+  o.marker.setStyle({fillColor:color,radius:size,fillOpacity:val>0?0.85:0.35});
+ });
+}
 
 // === VIEW SWITCHING ===
 function setView(v){
@@ -552,6 +584,7 @@ function setWeek(w){
  document.getElementById('week-display-big').textContent=weekToMonthStr(w);
  document.getElementById('week-slider-big').value=w;
  renderList();
+ if(state.markersInitd)updateMapHeat();
 }
 
 // === INIT ===
