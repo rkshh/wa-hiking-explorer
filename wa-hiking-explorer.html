@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="WA Hikes">
@@ -17,6 +17,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{color-scheme:light dark}
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="light"]{color-scheme:light}
 html,body{overflow-x:hidden;-webkit-overflow-scrolling:touch}
 body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Helvetica,Arial,sans-serif;background:#fbfbfd;color:#1d1d1f;font-size:17px;line-height:1.47;-webkit-font-smoothing:antialiased;letter-spacing:-0.022em}
 img{display:block;max-width:100%}
@@ -625,6 +628,14 @@ function init(){
  // Theme toggle
  var savedTheme=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
  document.documentElement.setAttribute('data-theme',savedTheme);
+ function updateThemeColor(theme){
+  var tc=theme==='dark'?'#000000':'#fbfbfd';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.remove();});
+  var meta=document.createElement('meta');
+  meta.name='theme-color';meta.content=tc;
+  document.head.appendChild(meta);
+ }
+ updateThemeColor(savedTheme);
  var themeBtn=document.getElementById('theme-toggle');
  if(themeBtn){
   themeBtn.textContent=savedTheme==='dark'?'☀️':'🌙';
@@ -633,6 +644,7 @@ function init(){
    var next=cur==='dark'?'light':'dark';
    document.documentElement.setAttribute('data-theme',next);
    localStorage.setItem('theme',next);
+   updateThemeColor(next);
    this.textContent=next==='dark'?'☀️':'🌙';
   };
  }
