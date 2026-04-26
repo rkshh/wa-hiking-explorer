@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0f0f1e">
+<meta name="theme-color" content="#f5efe3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1613" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="WA Hikes">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23c85a3a'/%3E%3Cpath d='M30 50 L30 115 Q30 120 35 120 L85 128 Q89 128.5 92 130 L128 142 Q132 143 135 142 L160 138 L175 143 L175 115 L178 108 L175 100 L172 92 L175 84 L172 76 L170 68 L165 60 L160 52 L153 47 L145 50 L135 47 L125 50 L115 47 L105 50 L90 47 L75 50 L60 47 L45 50 L30 47 Z' fill='%23ffffff' opacity='0.95'/%3E%3C/svg%3E">
 <meta name="referrer" content="no-referrer">
 <title>WA Hikes — Discover</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -48,7 +51,17 @@ a{color:inherit;text-decoration:none}
 }
 
 /* App shell */
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg)}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);padding-top:env(safe-area-inset-top);padding-bottom:0}
+
+/* Collapsible bars */
+#topbar-wrap{flex-shrink:0;background:var(--bg);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1),max-height 0.3s cubic-bezier(0.32,0.72,0,1),opacity 0.2s;z-index:50;position:sticky;top:0;max-height:200px;overflow:hidden}
+#topbar-wrap.hidden{transform:translateY(-100%);max-height:0;opacity:0;pointer-events:none}
+
+#bottom-nav{display:flex;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding-bottom:calc(env(safe-area-inset-bottom) + 4px);padding-top:6px;flex-shrink:0;z-index:100;transition:transform 0.3s cubic-bezier(0.32,0.72,0,1),max-height 0.3s cubic-bezier(0.32,0.72,0,1),opacity 0.2s;position:sticky;bottom:0;max-height:100px;overflow:hidden}
+#bottom-nav.hidden{transform:translateY(100%);max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0;pointer-events:none}
+.nav-btn{flex:1;padding:8px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);font-size:10px;font-weight:500;font-family:var(--sans);letter-spacing:0.03em;transition:color 0.15s}
+.nav-btn.active{color:var(--ink)}
+.nav-btn .icon{font-size:20px}
 
 /* Top bar */
 #topbar{padding:12px 20px 8px;flex-shrink:0;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -136,10 +149,8 @@ body.detail-open #app{display:none!important}
 .cta-secondary:active{background:var(--bg-elev)}
 
 /* Bottom nav */
-#bottom-nav{display:flex;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);flex-shrink:0;z-index:100}
-.nav-btn{flex:1;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-faint);font-size:11px;font-weight:500;font-family:var(--sans);letter-spacing:0.03em;transition:color 0.15s}
-.nav-btn.active{color:var(--ink)}
-.nav-btn .icon{font-size:22px}
+#bottom-nav.hidden-old{display:none}
+.nav-btn-old{}
 
 /* Week sheet */
 #week-sheet{position:fixed;inset:0;background:rgba(44,34,22,0.4);z-index:1600;display:none;align-items:flex-end;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
@@ -187,14 +198,16 @@ body.detail-open #app{display:none!important}
 </head>
 <body>
 <div id="app">
- <div id="topbar">
-  <div id="topbar-text">
-   <h1><svg width="22" height="14" viewBox="0 0 100 62" style="vertical-align:-2px" aria-label="Washington"><path d="M2 14 L2 42 Q2 44 4 44 L38 48 Q40 48.2 42 49 L58 54 Q60 54.5 62 54 L78 52 L88 54 L96 50 L96 38 L98 34 L96 30 L94 26 L96 22 L94 18 L92 14 L90 10 L86 8 L82 10 L76 8 L70 10 L64 8 L56 10 L48 8 L40 10 L32 8 L24 10 L16 8 L8 10 Z" fill="currentColor" opacity="0.85"/></svg>WA Hikes</h1>
-   <div class="subtitle">4,091 trails · <button id="week-pill">Today</button></div>
+ <div id="topbar-wrap">
+  <div id="topbar">
+   <div id="topbar-text">
+    <h1><svg width="22" height="14" viewBox="0 0 100 62" style="vertical-align:-2px" aria-label="Washington"><path d="M2 14 L2 42 Q2 44 4 44 L38 48 Q40 48.2 42 49 L58 54 Q60 54.5 62 54 L78 52 L88 54 L96 50 L96 38 L98 34 L96 30 L94 26 L96 22 L94 18 L92 14 L90 10 L86 8 L82 10 L76 8 L70 10 L64 8 L56 10 L48 8 L40 10 L32 8 L24 10 L16 8 L8 10 Z" fill="currentColor" opacity="0.85"/></svg>WA Hikes</h1>
+    <div class="subtitle">4,091 trails · <button id="week-pill">Today</button></div>
+   </div>
+   <button id="theme-toggle" aria-label="Toggle theme">☀️</button>
   </div>
-  <button id="theme-toggle" aria-label="Toggle theme">☀️</button>
+  <div id="chips"><button class="chip active" data-filter="all">All Trails</button><button class="chip" data-filter="best-now">⏰ Best Now</button><button class="chip" data-filter="top-rated">⭐ Top Rated</button><button class="chip" data-filter="easy">🟢 Easy</button><button class="chip" data-filter="moderate">🟡 Moderate</button><button class="chip" data-filter="hard">🔴 Hard</button><button class="chip" data-filter="scenic">✨ Most Scenic</button><button class="chip" data-filter="views">⛰️ Views</button><button class="chip" data-filter="waterfalls">💧 Waterfalls</button><button class="chip" data-filter="lakes">🌊 Lakes</button><button class="chip" data-filter="kid">👶 Kids</button><button class="chip" data-filter="dog">🐕 Dogs</button></div>
  </div>
- <div id="chips"><button class="chip active" data-filter="all">All Trails</button><button class="chip" data-filter="best-now">⏰ Best Now</button><button class="chip" data-filter="top-rated">⭐ Top Rated</button><button class="chip" data-filter="easy">🟢 Easy</button><button class="chip" data-filter="moderate">🟡 Moderate</button><button class="chip" data-filter="hard">🔴 Hard</button><button class="chip" data-filter="scenic">✨ Most Scenic</button><button class="chip" data-filter="views">⛰️ Views</button><button class="chip" data-filter="waterfalls">💧 Waterfalls</button><button class="chip" data-filter="lakes">🌊 Lakes</button><button class="chip" data-filter="kid">👶 Kids</button><button class="chip" data-filter="dog">🐕 Dogs</button></div>
  <div id="main">
   <div id="list-view" class="view"></div>
   <div id="map-view" class="view hidden"><div id="map"></div></div>
@@ -589,6 +602,21 @@ function setWeek(w){
 
 // === INIT ===
 function init(){
+ // Auto-hide top/bottom bars on scroll down
+ var lastY=0;
+ var topWrap=document.getElementById('topbar-wrap');
+ var navEl=document.getElementById('bottom-nav');
+ function onScroll(e){
+  var view=e.target;
+  var y=view.scrollTop;
+  var dy=y-lastY;
+  if(y<50){topWrap.classList.remove('hidden');navEl.classList.remove('hidden');}
+  else if(dy>6){topWrap.classList.add('hidden');navEl.classList.add('hidden');}
+  else if(dy<-6){topWrap.classList.remove('hidden');navEl.classList.remove('hidden');}
+  lastY=y;
+ }
+ document.querySelectorAll('.view').forEach(function(v){v.addEventListener('scroll',onScroll,{passive:true});});
+ 
  // Theme toggle
  var savedTheme=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
  document.documentElement.setAttribute('data-theme',savedTheme);
